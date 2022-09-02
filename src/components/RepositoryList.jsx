@@ -1,30 +1,58 @@
-import { FlatList, View, StyleSheet } from "react-native";
 import useRepositories from "../hooks/useRepositories";
-import RepositoryItem from "./RepositoryItem";
+import RepositoryListContainer from "./RepositoryListContainer";
+import { useState } from "react";
+import { Picker } from "@react-native-picker/picker";
+import { Searchbar } from "react-native-paper";
+import { useDebounce } from "use-debounce";
 
-const styles = StyleSheet.create({
-  separator: {
-    height: 10,
-  },
-});
+const picker = (selectedOrder, setSelectedOrder) => (
+  <Picker
+    selectedValue={selectedOrder}
+    onValueChange={(itemValue, itemIndex) => setSelectedOrder(itemValue)}
+  >
+    <Picker.Item label="Latest repositories" value="CREATED_AT" />
+    <Picker.Item
+      label="Highest rated repositories"
+      value="RATING_AVERAGE_DESC"
+    />
+    <Picker.Item label="Lowest rated repositories" value="RATING_AVERAGE_ASC" />
+  </Picker>
+);
 
-const ItemSeparator = () => <View style={styles.separator} />;
+const searchBar = (searchQuery, setSearchQuery) => (
+  <Searchbar
+    placeholder="Search"
+    onChangeText={(query) => setSearchQuery(query)}
+    value={searchQuery}
+  />
+);
 
 const RepositoryList = () => {
-  const { repositories } = useRepositories();
+  const [selectedOrder, setSelectedOrder] = useState("CREATED_AT");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  // Get the nodes from the edges array
-  const repositoryNodes = repositories
-    ? repositories.edges.map((edge) => edge.node)
-    : [];
+  const [searchQueryDebounced] = useDebounce(searchQuery, 500);
+
+  const { repositories, fetchMore } = useRepositories(
+    5,
+    selectedOrder,
+    searchQueryDebounced
+  );
+
+  const onEndReach = () => {
+    fetchMore();
+  };
 
   return (
-    <FlatList
-      data={repositoryNodes}
-      ItemSeparatorComponent={ItemSeparator}
-      renderItem={({ item, _index, separators }) => (
-        <RepositoryItem item={item} />
-      )}
+    <RepositoryListContainer
+      repositories={repositories}
+      header={
+        <>
+          {picker(selectedOrder, setSelectedOrder)}
+          {searchBar(searchQuery, setSearchQuery)}
+        </>
+      }
+      onEndReach={onEndReach}
     />
   );
 };
